@@ -22,18 +22,20 @@ import sys
 sys.path.append('/home/wk/e/mtcnn/keras-mtcnn/')
 from MTCNNx import masked_cls, masked_bbox, masked_landmark, combine_cls_bbox_landmark
 S=48
-if os.path.exists('cache{}.h5'.format(S)):
-    h5 = tables.open_file('cache48.h5', mode='r')
+
+cache_file = 'cache{}w.h5'.format(S)
+if os.path.exists(cache_file):
+    h5 = tables.open_file(cache_file, mode='r')
     ims_all = h5.root.ims.read()
     labels_all = h5.root.labels.read()
     h5.close()
     
 else:
-    with open(r'../48net/48/pts.imdb', 'rb') as fid:
+    with open(r'../48netw/48/pts.imdb', 'rb') as fid:
         pts = pickle.load(fid)
-    with open(r'../48net/48/cls.imdb','rb') as fid:
+    with open(r'../48netw/48/cls.imdb','rb') as fid:
         cls = pickle.load(fid)
-    with open(r'../48net/48/roi.imdb', 'rb') as fid:
+    with open(r'../48netw/48/roi.imdb', 'rb') as fid:
         roi = pickle.load(fid)
     ims_cls = []
     ims_pts = []
@@ -63,7 +65,7 @@ else:
     ims_all,labels_all = combine_cls_bbox_landmark(ims_cls, one_hot_labels, ims_roi, roi_score, ims_pts, pts_score)
     del ims_cls, one_hot_labels, ims_roi, roi_score, ims_pts, pts_score
 
-    h5 = tables.open_file('cache48.h5', mode='w', title='All')
+    h5 = tables.open_file(cache_file, mode='w', title='All')
     h5.create_array(h5.root, 'ims', ims_all)
     h5.create_array(h5.root, 'labels', labels_all)
     h5.close()
@@ -72,7 +74,7 @@ else:
 from MTCNNx import create_Kao_Onet
 model = create_Kao_Onet(r'model48.h5')
 
-lr = 0.01
+lr = 0.05
 batch_size = 1024*10
 for i_train in range(10):
     print('round ', i_train)
@@ -84,7 +86,7 @@ for i_train in range(10):
         'landmark':masked_landmark
     }
     loss_weights_list = {
-        'cls': 1.0,
+        'cls': 0.5,
         'bbox': 0.5,
         'landmark': 0.0
     }
@@ -98,6 +100,7 @@ for i_train in range(10):
     #parallel_model.compile(loss=loss_list, optimizer = my_adam, loss_weights=loss_weights_list, metrics=metrics_list)
     #parallel_model.fit([ims_all], [labels_all, labels_all, labels_all], batch_size=batch_size, epochs=1)
     model.compile(loss=loss_list, optimizer = my_adam, loss_weights=loss_weights_list, metrics=metrics_list)
-    model.fit([ims_all], [labels_all, labels_all, labels_all], batch_size=batch_size, epochs=2)
+    history = model.fit([ims_all], [labels_all, labels_all, labels_all], batch_size=batch_size, epochs=2)
+    #print(history.history[''])
     model.save_weights('model48.h5')
     print('model saved')
