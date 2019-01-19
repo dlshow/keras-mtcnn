@@ -19,7 +19,7 @@ import os
 import sys
 S = 12
 sys.path.append('/home/wk/e/mtcnn/keras-mtcnn/')
-from MTCNNx import masked_cls, masked_bbox, combine_cls_bbox
+from MTCNNx import masked_cls, masked_bbox, masked_landmark, combine_cls_bbox, combine_cls_bbox_landmark
 if os.path.exists('cache{}.ims'.format(S)) and os.path.exists('cache{}.labels'.format(S)):
     with open('cache{}.ims'.format(S), 'rb') as f:
         ims_all = pickle.load(f)
@@ -59,16 +59,11 @@ else:
 from MTCNNx import create_Kao_Pnet,create_Kao_Rnet
 if S == 12:
     model = create_Kao_Pnet(r'model{}.h5'.format(S))
-    batch_size = 1024*100
+    batch_size = 64#1024*100
 else:
     model = create_Kao_Rnet(r'model{}.h5'.format(S))
-    batch_size = 1024*50
-import keras.callbacks as cbks
-class KerasDebug(cbks.Callback):
-    def on_epoch_end(self, epoch, logs=None):
-        for k in logs:
-            if k.endswith('masked_cls'):
-                print(logs[k])
+    batch_size = 64#1024*50
+
 lr = 0.001
 
 for i_train in range(2):
@@ -77,23 +72,23 @@ for i_train in range(2):
     my_adam = adam(lr = lr)
     loss_list = {
         'cls':masked_cls,
-        'bbox':masked_bbox
+        'bbox':masked_bbox,
     }
     loss_weights_list = {
-        'cls': 1.0,
-        'bbox': 0.5
+        'cls': 0.5,
+        'bbox': 0.05,
     }
     metrics_list = {
-        'cls':'accuracy',
-        'bbox': masked_bbox
+        #'cls':masked_cls_fix,
+        #'bbox': masked_bbox_fix,
     }
 
-    parallel_model = keras.utils.multi_gpu_model(model, gpus=2)
-    parallel_model.compile(loss=loss_list, optimizer = my_adam, loss_weights=loss_weights_list, metrics=metrics_list)
-    parallel_model.fit([ims_all], [labels_all, labels_all], batch_size=batch_size, epochs=32)
-    '''
+    #parallel_model = keras.utils.multi_gpu_model(model, gpus=2)
+    #parallel_model.compile(loss=loss_list, optimizer = my_adam, loss_weights=loss_weights_list, metrics=metrics_list)
+    #parallel_model.fit([ims_all], [labels_all, labels_all], batch_size=batch_size, epochs=32)
+
     model.compile(loss=loss_list, optimizer = my_adam, loss_weights=loss_weights_list, metrics=metrics_list)
-    model.fit([ims_all], [labels_all, labels_all], batch_size=batch_size, epochs=1)#, callbacks=[KerasDebug()])
-    '''
+    model.fit([ims_all], [labels_all, labels_all], batch_size=batch_size, epochs=2)
+
     model.save_weights('model{}.h5'.format(S))
     print('model saved')
